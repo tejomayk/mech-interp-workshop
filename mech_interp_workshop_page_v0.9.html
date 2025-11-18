@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoom In: Mechanistic Interpretability Workshop</title>
+    <style>
+        :root {
+            --bg-color: #fffdf9; /* Warm paper white */
+            --text-color: #222;
+            --accent-color: #FF6B00; /* Distill Orange */
+            --accent-faint: #fff0e0;
+            --gray-light: #f9f9f9;
+            --border-color: #e0e0e0;
+            --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-body: "Charter", "Bitstream Charter", "Sitka Text", Cambria, serif;
+            --max-width: 800px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-body);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.8;
+            font-size: 1.15rem;
+        }
+
+        /* --- Layout --- */
+        header, section {
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 4rem 1rem;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: var(--max-width);
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* --- Typography --- */
+        h1 { font-family: var(--font-heading); font-size: 3.5rem; font-weight: 800; line-height: 1.1; letter-spacing: -1px; margin-bottom: 1.5rem; }
+        h2 { font-family: var(--font-heading); font-size: 2.2rem; margin-top: 0; margin-bottom: 1rem; color: #111; }
+        h3 { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 600; margin-bottom: 0.5rem; color: #333; }
+        p { margin-bottom: 1.5rem; color: #333; }
+        
+        .subtitle { font-size: 1.3rem; color: #666; font-weight: 400; margin-bottom: 3rem; font-family: var(--font-heading); }
+        
+        /* Academic Callout Box */
+        .concept-box {
+            background: white;
+            border-left: 4px solid var(--accent-color);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            font-size: 1rem;
+            color: #444;
+        }
+        .concept-label {
+            text-transform: uppercase;
+            font-family: var(--font-heading);
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: var(--accent-color);
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* --- Interactive Panels --- */
+        .interactive-panel {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2.5rem;
+            margin: 2.5rem 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+            font-family: var(--font-heading);
+            position: relative;
+        }
+
+        .panel-title { text-align: center; margin-top: 0; margin-bottom: 2rem; font-size: 1.2rem; color: #555; }
+
+        /* --- UI Elements --- */
+        button.btn {
+            background: var(--accent-color); color: white; border: none; padding: 14px 28px; border-radius: 6px;
+            font-size: 1rem; font-weight: 600; cursor: pointer; font-family: var(--font-heading);
+            transition: background 0.2s, transform 0.1s;
+        }
+        button.btn:hover { background: #e05e00; }
+        
+        .scroll-indicator { margin-top: 2rem; font-size: 2rem; color: var(--accent-color); animation: bounce 2s infinite; }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
+
+        /* --- DEMO 1: Gabor Filters (CSS Logic from provided file) --- */
+        .gabor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            justify-items: center;
+        }
+        .feature-box {
+            width: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+        .gabor {
+            width: 80px;
+            height: 80px;
+            border-radius: 4px;
+            border: 2px solid #eee;
+            transition: transform 0.2s, border-color 0.2s;
+            margin-bottom: 10px;
+        }
+        .feature-box:hover .gabor { transform: scale(1.1); border-color: var(--accent-color); }
+        
+        /* High contrast CSS patterns */
+        .gabor-vert { background: repeating-linear-gradient(90deg, #111 0px, #111 4px, #eee 4px, #eee 8px); }
+        .gabor-horz { background: repeating-linear-gradient(0deg, #111 0px, #111 4px, #eee 4px, #eee 8px); }
+        .gabor-diag { background: repeating-linear-gradient(45deg, #111 0px, #111 4px, #eee 4px, #eee 8px); }
+
+        .activation-bar { width: 100%; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+        .activation-fill { height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s ease-out; }
+
+        /* --- DEMO 2: Circuit Builder (Logic from provided file) --- */
+        .circuit-wrapper {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+        svg.circuit-svg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
+        }
+        .nodes-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px 40px;
+            box-sizing: border-box;
+        }
+        .layer-col {
+            display: flex; flex-direction: column; justify-content: space-around; align-items: center; width: 100px;
+        }
+        .node {
+            width: 70px; height: 70px;
+            background: white; border: 2px solid #ccc; border-radius: 50%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 0.75rem; font-weight: bold; cursor: pointer;
+            transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .node.active { border-color: var(--accent-color); background: #fff8f0; transform: scale(1.05); }
+        .node-label { position: absolute; bottom: -25px; width: 150px; text-align: center; font-size: 0.8rem; color: #666; pointer-events: none; }
+
+        /* --- DEMO 3: Polysemantic Interaction (Style from V4) --- */
+        .poly-container {
+            display: flex; justify-content: center; align-items: center; gap: 50px;
+        }
+        .poly-input {
+            width: 100px; height: 100px; border: 2px dashed #ccc; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; font-size: 2rem;
+        }
+        .poly-input:hover { border-color: var(--accent-color); background: var(--gray-light); }
+        .poly-input.active { border-color: var(--accent-color); background: var(--accent-faint); }
+        .poly-neuron {
+            width: 120px; height: 120px; border-radius: 50%; background: white; border: 4px solid #333;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.3s;
+        }
+        .poly-neuron.firing { background: var(--accent-color); border-color: var(--accent-color); color: white; }
+
+    </style>
+</head>
+<body>
+
+    <!-- SECTION 1: INTRO -->
+    <header>
+        <div class="container">
+            <div style="border-bottom: 2px solid var(--accent-color); display: inline-block; margin-bottom: 1rem; font-family: var(--font-heading); font-weight: bold; color: var(--accent-color);">
+                WORKSHOP
+            </div>
+            <h1>Zoom In: An Introduction<br>to Mechanistic Interpretability</h1>
+            <p class="subtitle">Moving beyond "Behavioral Psychology" to "Neuroscience" in AI.</p>
+            
+            <p>Traditionally, we evaluate AI models by their behavior: we give them an input and check the output (Loss/Accuracy). This treats the model as a Black Box.</p>
+            <p><strong>Mechanistic Interpretability</strong> asks a different question: <em>"What algorithms is the model actually implementing?"</em></p>
+            <p>Just as biologists use microscopes to zoom in from organisms to cells, we can zoom in on neural networks to find <strong>Features</strong> and <strong>Circuits</strong>.</p>
+            
+            <div style="text-align: center; margin-top: 2rem;">
+                <button class="btn" onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})">Start Workshop</button>
+                <div class="scroll-indicator">↓</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- SECTION 2: FEATURES -->
+    <section id="features">
+        <div class="container">
+            <h2>1. Features: The Atoms of Computation</h2>
+            <p>When we look at the weights of early layers in vision models (like InceptionV1 or ResNet), we notice a striking pattern. The model doesn't learn random noise. It learns specific, comprehensible patterns.</p>
+            <p>These are called <strong>Features</strong>. In Layer 1, these are almost universally "Gabor Filters"—detectors for edges and textures oriented in specific directions.</p>
+
+            <!-- DEMO 1: Using CSS Logic from file provided -->
+            <div class="interactive-panel">
+                <h3 class="panel-title">Interactive: Layer 1 Activation</h3>
+                
+                <div class="gabor-grid">
+                    <div class="feature-box" onmouseenter="activateFeature(this, 95)" onmouseleave="resetFeature(this)">
+                        <div class="gabor gabor-vert"></div>
+                        <div class="activation-bar"><div class="activation-fill"></div></div>
+                        <span style="font-size: 0.8rem; margin-top: 5px;">Vertical Edge</span>
+                    </div>
+                    
+                    <div class="feature-box" onmouseenter="activateFeature(this, 90)" onmouseleave="resetFeature(this)">
+                        <div class="gabor gabor-horz"></div>
+                        <div class="activation-bar"><div class="activation-fill"></div></div>
+                        <span style="font-size: 0.8rem; margin-top: 5px;">Horizontal Edge</span>
+                    </div>
+                    
+                    <div class="feature-box" onmouseenter="activateFeature(this, 85)" onmouseleave="resetFeature(this)">
+                        <div class="gabor gabor-diag"></div>
+                        <div class="activation-bar"><div class="activation-fill"></div></div>
+                        <span style="font-size: 0.8rem; margin-top: 5px;">Diagonal Edge</span>
+                    </div>
+                </div>
+
+                <p style="text-align: center; font-size: 0.9rem; color: #666; margin-top: 1.5rem;">
+                    (Hover to visualize activation)
+                </p>
+            </div>
+
+            <div class="concept-box">
+                <span class="concept-label">Biological Analogy</span>
+                <strong>Convergent Evolution:</strong> It turns out that the mammalian visual cortex (V1) evolved to detect these exact same edges. Both biology and AI converged on the same mathematical solution for processing images efficiently.
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: CIRCUITS -->
+    <section id="circuits">
+        <div class="container">
+            <h2>2. Circuits: Connecting the Atoms</h2>
+            <p>Features alone are boring. The magic happens when they connect. A <strong>Circuit</strong> is a subgraph of the neural network consisting of features connected by weights.</p>
+            <p>In InceptionV1 (Layer mixed3a), researchers found a <strong>Curve Detector</strong>. But how does a matrix of numbers "know" what a curve is? It builds it from the edges we saw in the previous section.</p>
+
+            <!-- DEMO 2: Using SVG/JS Logic from file provided -->
+            <div class="interactive-panel" id="circuit-panel">
+                <h3 class="panel-title">Reverse Engineering a Curve Detector</h3>
+                
+                <div class="circuit-wrapper">
+                    <!-- The SVG Canvas for Lines -->
+                    <svg class="circuit-svg" id="circuitSvg"></svg>
+
+                    <!-- The Nodes -->
+                    <div class="nodes-layer">
+                        <!-- Input Layer (Edges) -->
+                        <div class="layer-col" id="input-layer">
+                            <div class="node" data-id="top-edge" data-weight="1.0" onclick="toggleNode(this)">
+                                <div style="width: 40px; height: 2px; background: #333; transform: rotate(0deg);"></div>
+                                <div class="node-label">Top Edge</div>
+                            </div>
+                            <div class="node" data-id="diag-edge" data-weight="1.5" onclick="toggleNode(this)">
+                                <div style="width: 40px; height: 2px; background: #333; transform: rotate(45deg);"></div>
+                                <div class="node-label">Diag Edge</div>
+                            </div>
+                            <div class="node" data-id="vert-edge" data-weight="1.0" onclick="toggleNode(this)">
+                                <div style="width: 40px; height: 2px; background: #333; transform: rotate(90deg);"></div>
+                                <div class="node-label">Right Edge</div>
+                            </div>
+                        </div>
+
+                        <!-- Output Layer (Curve) -->
+                        <div class="layer-col" style="justify-content: center;">
+                            <div class="node" id="output-node" style="width: 100px; height: 100px; border-width: 4px;">
+                                <svg width="60" height="60" viewBox="0 0 100 100" style="pointer-events: none;">
+                                    <path d="M 10 90 Q 90 10 90 90" stroke="#333" fill="none" stroke-width="8" stroke-linecap="round"/>
+                                </svg>
+                                <div class="node-label" style="bottom: -35px; width: 200px;"><strong>Curve Detector</strong><br>Activation: <span id="score-display">0%</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p style="text-align: center; font-size: 0.9rem; color: #666; margin-top: 1rem;">
+                    Click the <strong>Edge Inputs</strong> (Left) to construct the curve. <br>Notice how the curve detector is just a "linear combination" of straight lines.
+                </p>
+            </div>
+
+            <p>This reveals a profound simplicity: Complex shapes are just weighted sums of simple shapes. The network isn't memorizing curves; it is <em>constructing</em> them geometrically using positive weights (excitation).</p>
+        </div>
+    </section>
+
+    <!-- SECTION 4: POLYSEMANTICITY -->
+    <section id="polysemanticity">
+        <div class="container">
+            <h2>3. The Challenge: Polysemantic Neurons</h2>
+            <p>So far, we've assumed one neuron = one concept (a "monosemantic" neuron). Unfortunately, reality is messier.</p>
+            <p>We often find neurons that activate for two completely unrelated things (e.g., "Cat Faces" AND "Car Fronts"). This phenomenon is called <strong>Polysemanticity</strong> (many meanings).</p>
+
+            <!-- DEMO 3: Polysemantic Explorer (Preserved from previous version) -->
+            <div class="interactive-panel">
+                <h3 class="panel-title">The "Superposition" Simulation</h3>
+                
+                <div class="poly-container">
+                    <div style="text-align: center;">
+                        <div class="poly-input" id="input-cat" onmouseenter="activatePoly('cat')" onmouseleave="deactivatePoly()">
+                            🐱
+                        </div>
+                        <span style="font-size: 0.8rem; color: #666; display: block; margin-top: 5px;">Concept A: Cat</span>
+                    </div>
+
+                    <div class="poly-neuron" id="poly-center">
+                        <span style="font-size: 0.8rem; font-weight: bold;">Neuron #456</span>
+                        <span id="neuron-status" style="font-size: 0.7rem;">Inactive</span>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div class="poly-input" id="input-car" onmouseenter="activatePoly('car')" onmouseleave="deactivatePoly()">
+                            🚗
+                        </div>
+                        <span style="font-size: 0.8rem; color: #666; display: block; margin-top: 5px;">Concept B: Car</span>
+                    </div>
+                </div>
+                <p id="poly-desc" style="text-align: center; margin-top: 2rem; height: 3rem; color: #555;">
+                    Hover over the icons. Observe the neuron's confusion.
+                </p>
+            </div>
+
+            <div class="concept-box">
+                <span class="concept-label">The Superposition Hypothesis</span>
+                Why does this happen? The leading theory is that models have more "features" to represent than they have neurons. To fit everything in, the model packs unrelated features into the same neuron using a property of high-dimensional geometry (nearly orthogonal vectors).
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 5: CONCLUSION -->
+    <section id="conclusion">
+        <div class="container" style="border-top: 1px solid #eee; padding-top: 4rem;">
+            <h2>Universality & Conclusion</h2>
+            <p>The existence of these interpretable circuits suggests that neural networks are not incomprehensible blobs of math. They are decomposable algorithms.</p>
+            <p>Perhaps most surprisingly, these features are <strong>Universal</strong>. If you train a completely different model architecture on the same data, it will likely learn the same Curve Detectors and High-Frequency Detectors.</p>
+            
+            <h3>Key Takeaways</h3>
+            <ul style="list-style-type: circle; padding-left: 20px; color: #444;">
+                <li><strong>Zoom In:</strong> Look at the weights, not just the loss.</li>
+                <li><strong>Features:</strong> Simple patterns (Gabor filters) combine to form complex ones.</li>
+                <li><strong>Circuits:</strong> The wiring logic (weights) can be read like code.</li>
+                <li><strong>Polysemanticity:</strong> The main hurdle to full interpretability.</li>
+            </ul>
+
+            <div style="margin-top: 3rem; text-align: center;">
+                <p style="font-style: italic; color: #666;">
+                    Based on "Zoom In: An Introduction to Circuits" by Olah et al., Distill, 2020.
+                </p>
+                <a href="https://distill.pub/2020/circuits/zoom-in/" target="_blank" class="btn" style="text-decoration: none; display: inline-block;">Read the Full Article</a>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // --- Feature Visualization Interaction ---
+        function activateFeature(el, percent) {
+            const bar = el.querySelector('.activation-fill');
+            bar.style.width = percent + '%';
+        }
+        function resetFeature(el) {
+            const bar = el.querySelector('.activation-fill');
+            bar.style.width = '0%';
+        }
+
+        // --- Circuit Builder Logic ---
+        const circuitSvg = document.getElementById('circuitSvg');
+        const outputNode = document.getElementById('output-node');
+        const inputNodes = document.querySelectorAll('#input-layer .node');
+        let activeInputs = new Set();
+
+        function toggleNode(el) {
+            const id = el.getAttribute('data-id');
+            if(activeInputs.has(id)) {
+                activeInputs.delete(id);
+                el.classList.remove('active');
+            } else {
+                activeInputs.add(id);
+                el.classList.add('active');
+            }
+            updateCircuit();
+        }
+
+        function updateCircuit() {
+            let totalWeight = 0;
+            let maxPossible = 0;
+            inputNodes.forEach(node => {
+                const w = parseFloat(node.getAttribute('data-weight'));
+                maxPossible += w;
+                if(activeInputs.has(node.getAttribute('data-id'))) {
+                    totalWeight += w;
+                }
+            });
+
+            const percentage = (totalWeight / maxPossible) * 100;
+            document.getElementById('score-display').innerText = Math.round(percentage) + "%";
+            
+            if(percentage > 60) {
+                outputNode.classList.add('active');
+                outputNode.style.borderColor = 'var(--accent-color)';
+            } else {
+                outputNode.classList.remove('active');
+                outputNode.style.borderColor = '#ccc';
+            }
+            drawConnections();
+        }
+
+        function drawConnections() {
+            circuitSvg.innerHTML = ''; // Clear lines
+            
+            // Use specific coordinates logic from file provided
+            const containerRect = document.querySelector('.circuit-wrapper').getBoundingClientRect();
+            const outRect = outputNode.getBoundingClientRect();
+            
+            // Output Anchor Point (relative to SVG container)
+            const x2 = outRect.left - containerRect.left;
+            const y2 = outRect.top - containerRect.top + (outRect.height / 2);
+
+            inputNodes.forEach(node => {
+                if(!activeInputs.has(node.getAttribute('data-id'))) return; 
+
+                const rect = node.getBoundingClientRect();
+                const x1 = rect.left - containerRect.left + rect.width;
+                const y1 = rect.top - containerRect.top + (rect.height / 2);
+
+                // Create Bezier Curve
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const controlOffset = 60;
+                const d = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
+                
+                path.setAttribute("d", d);
+                path.setAttribute("stroke", "var(--accent-color)");
+                path.setAttribute("stroke-width", "3");
+                path.setAttribute("fill", "none");
+                path.setAttribute("stroke-linecap", "round");
+                
+                // Animation
+                path.style.strokeDasharray = "1000";
+                path.style.strokeDashoffset = "1000";
+                path.style.animation = "dash 0.6s linear forwards";
+                
+                circuitSvg.appendChild(path);
+            });
+
+            // Add dynamic style for animation
+            if(!document.getElementById('anim-style')) {
+                const s = document.createElement('style');
+                s.id = 'anim-style';
+                s.innerHTML = `@keyframes dash { to { stroke-dashoffset: 0; } }`;
+                document.head.appendChild(s);
+            }
+        }
+
+        window.addEventListener('resize', drawConnections);
+
+        // --- Polysemantic Logic ---
+        function activatePoly(type) {
+            const neuron = document.getElementById('poly-center');
+            const desc = document.getElementById('poly-desc');
+            
+            neuron.classList.add('firing');
+            document.getElementById('input-'+type).classList.add('active');
+
+            if(type === 'cat') {
+                neuron.innerHTML = "<span style='font-size:2rem'>🐱</span>";
+                desc.innerHTML = "The neuron fires! It thinks it sees a <strong>Cat</strong>.";
+            } else {
+                neuron.innerHTML = "<span style='font-size:2rem'>🚗</span>";
+                desc.innerHTML = "The neuron fires! It thinks it sees a <strong>Car</strong>.<br>Wait, isn't this the Cat neuron?";
+            }
+        }
+
+        function deactivatePoly() {
+            const neuron = document.getElementById('poly-center');
+            const desc = document.getElementById('poly-desc');
+            
+            neuron.classList.remove('firing');
+            document.querySelectorAll('.poly-input').forEach(el => el.classList.remove('active'));
+            
+            neuron.innerHTML = `<span style="font-size: 0.8rem; font-weight: bold;">Neuron #456</span><span style="font-size: 0.7rem;">Inactive</span>`;
+            desc.innerHTML = "Hover over the icons. Observe the neuron's confusion.";
+        }
+    </script>
+</body>
+</html>
